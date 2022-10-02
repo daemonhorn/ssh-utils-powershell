@@ -120,6 +120,8 @@ function agentKeys {
 		return $keys
 }
 
+## MAIN
+
 if ($D) {
 	$DebugPreference = "Continue"
 }
@@ -130,7 +132,7 @@ Write-debug "options: 		$O"
 Write-debug "ssh port: 		$P"
 Write-debug "verbose: 		$V"
 Write-debug "debug_ps: 		$D"
-Write-debug "host:			$H"
+Write-debug "user@host[s]:		$HOSTS"
 
 if ($HELP) {
 	usage True
@@ -208,13 +210,15 @@ if ($V) {
 }
 
 if ($HOSTS) {
-	foreach ($hostname in "$HOSTS") {
+	# Make it a collection by space delimiter to allow iteration using foreach.
+	$HOSTS_COLLECTION = $HOSTS.Split(" ") 
+	foreach ($hostname in $HOSTS_COLLECTION) {
 		# inherit username from shell variable if not specified on cli.
-		if ($hostname -notcontains "*@*") {
+		if ($hostname -notlike "*@*") {
 			$user = "${env:USERNAME}@"
 			write-warning "Username not specified, using $user from environment."
 		}
-		write-debug "`nHost: $hostname`n Keys: $keys`n User: $user`n Port: $P`n Options: $O"
+		write-debug "`nHost: $hostname`n User(env): $user`n Port: $P`n Options: $O`n Keys: $keys"
 		sendkey "$hostname" "$keys" "$user" "$P" "$O"
 	}
 } else { 

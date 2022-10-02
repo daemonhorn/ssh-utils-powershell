@@ -93,10 +93,10 @@ umask 077; \
 keyfile=$HOME/.ssh/authorized_keys ; \
 mkdir -p -- "$HOME/.ssh/" ; \
 while read alg key comment ; do \
-	[ -n "$key" ] || continue; \
-	#[ -n "$alg" ] || continue; \
-	#[ -n "$comment" ] || continue; \
-	if ! grep -sqwF "$key" "$keyfile"; then \
+	[ -n \"$key\" ] || continue; \
+	#[ -n \"$alg\" ] || continue; \
+	#[ -n \"$comment\" ] || continue; \
+	if ! grep -sqwF \"$key\" "$keyfile"; then \
 		printf \"$alg $key $comment\n\" | sed \"s/\x0D//g\" >> "$keyfile" ; \
 		echo "Added SSH public key to $USER@`hostname`." ; \
 	fi ; \
@@ -112,11 +112,12 @@ fi 	\
 }
 
 function agentKeys {
-        $keys = ssh-add -L
+        $keys = ssh-add -L | Out-String
 		if ($keys -contains 'The agent has no') { 
 			Write-Warning "ssh-agent: No keys present."
 			return 1 
 		}
+		write-debug "agentkeys: $keys"
 		return $keys
 }
 

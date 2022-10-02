@@ -12,24 +12,24 @@ param(
 	[Parameter(HelpMessage="Debug mode for powershell script")]
 	[switch]$D,
 	[Parameter(HelpMessage="Detailed usage / syntax help.")]
-	[switch]$H,
+	[switch]$HELP,
 	[Parameter(HelpMessage="[user@]host [user@host]...", Position = 0, ValueFromRemainingArguments = $true)]
 	[string]$HOSTS
 )
 
-function usage {
-        write-host "usage: ssh-copy-id [-l] [-v] [-d] [-i keyfile] [-o option] [-p port] [user@]hostname" -foregroundcolor yellow
-		
+function usage ($verbose) {
+        write-host "usage: ssh-copy-id [-l] [-v] [-d] [-help] [-i keyfile] [-o option] [-p port] [user@]hostname" -foregroundcolor yellow
+		if (! $verbose) { exit 1 }
 		write-host "`nDESCRIPTION
      The ssh-copy-id utility copies public keys to a remote host's
-     ~/.ssh/authorized_keys file (creating the file and directory, if
-     required).
+     ~/.ssh/authorized_keys file.
 
      The following options are available:
 
+     -help   Provide this detailed cli syntax help.
+
      -i file
-             Copy the public key contained in file.  This option can be
-             specified multiple times and can be combined with the -l option.
+             Copy the public key contained in file.  
              If a private key is specified and a public key is found then the
              public key will be used.
 
@@ -104,8 +104,8 @@ Write-debug "verbose: 		$V"
 Write-debug "debug_ps: 		$D"
 Write-debug "host:			$H"
 
-if ($H) {
-	usage
+if ($HELP) {
+	usage True
 	exit 1
 }
 
@@ -117,6 +117,10 @@ if ($L) {
 switch ($I) {
 	# Handle $I not being set at all.
 	"" {
+		if (! $L) { 
+			Write-Error "You must provide either -l or -i"
+			usage
+		}
 		break 
 	}
 	# Check if identity file was passed without the .pub file extension, and add it.
@@ -159,12 +163,16 @@ if (($keys -inotlike "*@openssh.com*") -and ($keys -inotlike "*ssh-*") -and ($ke
 }
 
 # Validation of port param
-if ($P -ne "") {
-	if (! $P -is [int]) { Write-error "Invalid port: $P" ; usage }
+if ($P) {
+	if ($P -notmatch '^[0-9]+$') { 
+		write-warning "Invalid port: $P" 
+		usage 
+	}
 	# Fixup to use ssh syntax, but only if set so that an unset variable will not impact syntax
 	$P = "-p $P"
 	write-debug "Port: $P"
 }
+
 # We don't need to pass around verbose and -o ssh-options seperately, so combine them
 if ($V) {
 	$O += "-v"

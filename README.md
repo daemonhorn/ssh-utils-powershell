@@ -16,16 +16,15 @@ DESCRIPTION
      -help   Provide this detailed cli syntax help.
 
      -i file
-             Copy the public key contained in file.  This option can be
-             specified multiple times and can be combined with the -l option.
+             Copy the public key contained in file.  This option can allow 
+             multiple files separaed by commas and can be combined with the -l option.
              If a private key is specified and a public key is found then the
-             public key will be used.
+             public key will be used. (e.g. -i id_ecdsa_sk,id_rsa)
 
-     -l      Copy the keys currently held by ssh-agent(1).
+     -l      Copy the keys currently held by ssh-agent(1).  
 
      -o ssh-option
-             Pass this option directly to ssh(1).  This option can be
-             specified multiple times.
+             Pass this option directly to ssh(1).  
 
      -p port
              Connect to the specified port on the remote host instead of the
@@ -39,10 +38,12 @@ DESCRIPTION
      one optionally qualified by a user name.
 ```
 ## TODO:
-- [ ] Add support for multiple `-i` cli options and iteration
+- [X] Add support for multiple `-i` cli values and iteration, and update syntax in help.
 - [X] Add support for `user@` automagic handling if not specified on cli
 - [X] Add support for multiple `user@host` objects and iteration
 - [X] cleanup CRLF->LF handling for authorized_keys
+- [X] Test ssh options parameters, and update help.
+- [ ] Add support for pushing keys to windows hosts as well (powershell instead of sh)
 - [ ] Add support for powershell-scriptlet module 
 - [ ] Add support for signed powershell ?
 - [ ] Check all return codes, and document success/fail/other (match upstream ?)

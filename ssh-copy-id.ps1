@@ -27,7 +27,7 @@
 
 param(
 	[Parameter(HelpMessage="Identity File - public key e.g.: ~\.ssh\id_rsa.pub")]
-	[string]$I, 
+	[string[]]$I, 
 	[Parameter(HelpMessage="Load keys from ssh-agent")]
 	[switch]$L,
 	[Parameter(HelpMessage="ssh-option argument to pass to ssh -o command line")]
@@ -56,16 +56,15 @@ function usage ($verbose) {
      -help   Provide this detailed cli syntax help.
 
      -i file
-             Copy the public key contained in file.  This option can be
-             specified multiple times and can be combined with the -l option.
+             Copy the public key contained in file.  This option can allow 
+             multiple files separaed by commas and can be combined with the -l option.
              If a private key is specified and a public key is found then the
-             public key will be used.
+             public key will be used. (e.g. -i id_ecdsa_sk,id_rsa)
 
      -l      Copy the keys currently held by ssh-agent(1).  
 
      -o ssh-option
-             Pass this option directly to ssh(1).  This option can be
-             specified multiple times.
+             Pass this option directly to ssh(1).  
 
      -p port
              Connect to the specified port on the remote host instead of the
@@ -80,7 +79,7 @@ function usage ($verbose) {
         exit 1
 }
 
-function sendkey ($h, $k, $user, $port, $options) {
+function sendkey ($h, $k, $user, $port, $options, $verbose) {
 	#Please use an editor that displays TAB,CR,LF as visible elements. Use only unix-style line endings (LF).
 	#Be very careful with LF vs CRLF, and quoting of strings for sh -c.  Use sh -cx to help debug.
 	#Use powershell here_string with single quote to not do variable replacement, and treat everything very literal.
@@ -108,7 +107,7 @@ fi 	\
 '@
 
 		# Use write-output to enable proper pipeline support
-		write-output "${k}" | ssh $port -S none $options "$user$h" $here_string
+		write-output "${k}" | ssh $port -S none $options $verbose "$user$h" $here_string
 }
 
 function agentKeys {
@@ -144,43 +143,51 @@ if ($L) {
 	$keys = agentKeys
 }
 
+# Convert verbose flag to ssh cli syntax
+if ($V) {
+	$VERBOSE = "-v"
+}
+
 # Validation of Identity param
-switch ($I) {
-	# Handle $I not being set at all.
-	"" {
-		if (! $L) { 
-			Write-Error "You must provide either -l or -i.  -help for full syntax."
+$I_COLLECTION = $I 
+foreach ($I in $I_COLLECTION) {
+	switch ($I) {
+		# Handle $I not being set at all.
+		"" {
+			if (! $L) { 
+				Write-Error "You must provide either -l or -i.  -help for full syntax."
+				usage
+			}
+			break 
+		}
+		# Check if identity file was passed without the .pub file extension, and add it.
+		{Test-Path "${I}.pub" -PathType Leaf} {
+			$keys += get-content "${I}.pub"
+			write-debug "keys-appendpub: $keys"
+			break
+		}
+		# Check for identity file verbatim
+		{Test-Path $I -PathType Leaf} { 
+			$keys += get-content "${I}"
+			write-debug "keys-default: $keys"
+			break
+		}
+		# Check the ~\.ssh folder for .pub
+		{Test-Path "${env:USERPROFILE}\.ssh\${I}.pub" -PathType Leaf} {
+			$keys += get-content "${env:USERPROFILE}\.ssh\${I}.pub" | Out-String
+			write-debug "keys-.ssh-appendpub: $keys"
+			break
+		}
+		# Check the ~\.ssh folder verbatim
+		{Test-Path "${env:USERPROFILE}\.ssh\${I}" -PathType Leaf} {
+			$keys += get-content "${env:USERPROFILE}\.ssh\${I}"
+			write-debug "keys-.ssh: $keys"
+			break
+		}
+		default	{ 
+			Write-Error "Identity File: $I not found.  Try -i ${env:USERPROFILE}\.ssh\id_rsa.pub or similar."
 			usage
 		}
-		break 
-	}
-	# Check if identity file was passed without the .pub file extension, and add it.
-	{Test-Path "${I}.pub" -PathType Leaf} {
-		$keys += get-content "${I}.pub"
-		write-debug "keys-appendpub: $keys"
-		break
-	}
-	# Check for identity file verbatim
-	{Test-Path $I -PathType Leaf} { 
-		$keys += get-content $I 
-		write-debug "keys-default: $keys"
-		break
-	}
-	# Check the ~\.ssh folder for .pub
-	{Test-Path "${env:USERPROFILE}\.ssh\${I}.pub" -PathType Leaf} {
-		$keys += get-content "${env:USERPROFILE}\.ssh\${I}.pub" 
-		write-debug "keys-.ssh-appendpub: $keys"
-		break
-	}
-	# Check the ~\.ssh folder verbatim
-	{Test-Path "${env:USERPROFILE}\.ssh\${I}" -PathType Leaf} {
-		$keys += get-content "${env:USERPROFILE}\.ssh\${I}" 
-		write-debug "keys-.ssh: $keys"
-		break
-	}
-	default	{ 
-		Write-Error "Identity File: $I not found.  Try -i ${env:USERPROFILE}\.ssh\id_rsa.pub or similar."
-		usage
 	}
 }
 # handle the edge cases where the user tried to pass in a private key instead of a public key, or an oddly formatted file.
@@ -204,12 +211,6 @@ if ($P) {
 	write-debug "Port: $P"
 }
 
-# We don't need to pass around verbose and -o ssh-options seperately, so combine them
-if ($V) {
-	$O += "-v"
-	write-debug "Combined Options: $O"
-}
-
 if ($HOSTS) {
 	# Make it a collection by space delimiter to allow iteration using foreach.
 	$HOSTS_COLLECTION = $HOSTS.Split(" ") 
@@ -219,8 +220,9 @@ if ($HOSTS) {
 			$user = "${env:USERNAME}@"
 			write-warning "Username not specified, using $user from environment."
 		}
-		write-debug "`nHost: $hostname`n User(env): $user`n Port: $P`n Options: $O`n Keys: $keys"
-		sendkey "$hostname" "$keys" "$user" "$P" "$O"
+		# Linefeed (LF) is wierd with powershell and collections (like $keys), best to debug in sh -cx, not in powershell if you suspect a LF issue
+		write-debug "`nHost: $hostname`n User(env): $user`n Port: $P`n Options: $O`n Verbose: $V`n Keys: $keys" 
+		sendkey "$hostname" "$keys" "$user" "$P" "$O" "$VERBOSE"
 	}
 } else { 
 write-error "user@host parameter is required. Use -help for full syntax."

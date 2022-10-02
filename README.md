@@ -39,14 +39,15 @@ DESCRIPTION
      one optionally qualified by a user name.
 ```
 ## TODO:
-[ ] Add support for multiple `-i` cli options and iteration
-[X] Add support for `user@` automagic handling if not specified on cli
-[ ] Add support for multiple `user@host` objects and iteration
-[ ] Add support for powershell-scriptlet module 
-[ ] Add support for signed powershell ?
-[ ] Check all return codes, and document success/fail/other (match upstream ?)
-[ ] Ask upstream [PowerShell/Win32-OpenSSH] / openssh-portable if they might have interest after maturing
-[ ] style(9) improvements - if possible with LF not being mangled for sh -c foo
-[ ] lint improvements
-[ ] check $psversiontable and test older versions/variants
+- [ ] Add support for multiple `-i` cli options and iteration
+- [X] Add support for `user@` automagic handling if not specified on cli
+- [ ] Add support for multiple `user@host` objects and iteration
+- [ ] cleanup CRLF->LF handling for authorized_keys
+- [ ] Add support for powershell-scriptlet module 
+- [ ] Add support for signed powershell ?
+- [ ] Check all return codes, and document success/fail/other (match upstream ?)
+- [ ] Ask upstream [PowerShell/Win32-OpenSSH] / openssh-portable if they might have interest after maturing
+- [ ] style(9) improvements - if possible with LF not being mangled for sh -c foo
+- [ ] lint improvements
+- [ ] check $psversiontable and test older versions/variants
  

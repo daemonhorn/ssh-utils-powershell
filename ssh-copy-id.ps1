@@ -97,7 +97,7 @@ while read alg key comment ; do \
 	#[ -n "$alg" ] || continue; \
 	#[ -n "$comment" ] || continue; \
 	if ! grep -sqwF "$key" "$keyfile"; then \
-		printf \"$alg $key $comment\n\" >> "$keyfile" ; \
+		printf \"$alg $key $comment\n\" | sed \"s/\x0D//g\" >> "$keyfile" ; \
 		echo "Added SSH public key to $USER@`hostname`." ; \
 	fi ; \
 done ; \

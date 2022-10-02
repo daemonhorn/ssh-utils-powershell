@@ -42,7 +42,7 @@ DESCRIPTION
 - [ ] Add support for multiple `-i` cli options and iteration
 - [X] Add support for `user@` automagic handling if not specified on cli
 - [X] Add support for multiple `user@host` objects and iteration
-- [ ] cleanup CRLF->LF handling for authorized_keys
+- [X] cleanup CRLF->LF handling for authorized_keys
 - [ ] Add support for powershell-scriptlet module 
 - [ ] Add support for signed powershell ?
 - [ ] Check all return codes, and document success/fail/other (match upstream ?)

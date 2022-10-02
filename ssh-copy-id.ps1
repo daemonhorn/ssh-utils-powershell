@@ -1,3 +1,30 @@
+#
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer
+#    in this position and unchanged.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+
+
+
 param(
 	[Parameter(HelpMessage="Identity File - public key e.g.: ~\.ssh\id_rsa.pub")]
 	[string]$I, 
@@ -29,7 +56,8 @@ function usage ($verbose) {
      -help   Provide this detailed cli syntax help.
 
      -i file
-             Copy the public key contained in file.  
+             Copy the public key contained in file.  This option can be
+             specified multiple times and can be combined with the -l option.
              If a private key is specified and a public key is found then the
              public key will be used.
 
@@ -53,7 +81,7 @@ function usage ($verbose) {
 }
 
 function sendkey ($h, $k, $user, $port, $options) {
-	#Please use an editor that displays TAB,CR,LF as visible elements. Use unix-style line endings (LF).
+	#Please use an editor that displays TAB,CR,LF as visible elements. Use only unix-style line endings (LF).
 	#Be very careful with LF vs CRLF, and quoting of strings for sh -c.  Use sh -cx to help debug.
 	#Use powershell here_string with single quote to not do variable replacement, and treat everything very literal.
 	#sh -c string must have single quotes around entire entity, but is very picky about escaping strings based on both sh logic, and powershell.
@@ -118,7 +146,7 @@ switch ($I) {
 	# Handle $I not being set at all.
 	"" {
 		if (! $L) { 
-			Write-Error "You must provide either -l or -i"
+			Write-Error "You must provide either -l or -i.  -help for full syntax."
 			usage
 		}
 		break 
@@ -168,7 +196,7 @@ if ($P) {
 		write-warning "Invalid port: $P" 
 		usage 
 	}
-	# Fixup to use ssh syntax, but only if set so that an unset variable will not impact syntax
+	# Fixup to simplify logic and match ssh syntax
 	$P = "-p $P"
 	write-debug "Port: $P"
 }
@@ -179,57 +207,18 @@ if ($V) {
 	write-debug "Combined Options: $O"
 }
 
-
-
-
-
-
-#while getopts 'i:lo:p:v' arg; do
-#        case $arg in
-#       i)
-#                hasarg="x"
-#                if [ -r "${OPTARG}.pub" ]; then
-#                        keys="$(cat -- "${OPTARG}.pub")$nl$keys"
-#                elif [ -r "$OPTARG" ]; then
-#                        keys="$(cat -- "$OPTARG")$nl$keys"
-#                else
-#                        echo "File $OPTARG not found" >&2
-#                        exit 1
-#                fi
-#                ;;
-#        l)
-#                hasarg="x"
-#                agentKeys
-#                ;;
-#		p)
-#                port=-p$nl$OPTARG
-#                ;;
-#        o)
-#                options=$options$nl-o$nl$OPTARG
-#                ;;
-#        v)
-#                options="$options$nl-v"
-#                ;;
-#        *)
-#                usage
-#                ;;
-#        esac
-#done >&2
-
-#shift $((OPTIND-1))
-
-#if [ -z "$hasarg" ]; then
-#        agentKeys
-#fi
-#if [ -z "$keys" ] || [ "$keys" = "$nl" ]; then
-#        echo "no keys found" >&2
-#        exit 1
-#fi
-#if [ "$#" -eq 0 ]; then
-#        usage
-#fi
-
-foreach ($hostname in "$HOSTS") {
-	write-debug "`nHost: $hostname`n Keys: $keys`n User: $user`n Port: $P`n Options: $O"
-    sendkey "$hostname" "$keys" "$user" "$P" "$O"
+if ($HOSTS) {
+	foreach ($hostname in "$HOSTS") {
+		# inherit username from shell variable if not specified on cli.
+		if ($hostname -notcontains "*@*") {
+			$user = "${env:USERNAME}@"
+			write-warning "Username not specified, using $user from environment."
+		}
+		write-debug "`nHost: $hostname`n Keys: $keys`n User: $user`n Port: $P`n Options: $O"
+		sendkey "$hostname" "$keys" "$user" "$P" "$O"
+	}
+} else { 
+write-error "user@host parameter is required. Use -help for full syntax."
+usage
+exit 1
 }

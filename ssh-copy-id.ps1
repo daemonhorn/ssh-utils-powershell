@@ -79,7 +79,58 @@ function usage ($verbose) {
         exit 1
 }
 
+# Timeouts are set to be generic at 1.2 secs for initial connect, and
+# an additional 1.2 secs after connection successful to get banner with ssh* string
+function getSSHbanner ($Server, $Port) {
+	$TcpTimeout = 1200
+	# Fixup input parameters from the ssh syntax to something more usable for powershell
+	if ($port -notlike "") { $port = $port.substring(3) } else { $port = 22 }
+	if ($server -like "*@*") { $parts = $server.split("@");  $server = $parts[1] }
+	# If you need to debug, remove try/catch, production code needs to keep errors sane
+	Try {
+		$tcpConnection = New-Object System.Net.Sockets.TcpClient
+		if (!$tcpConnection.ConnectAsync($Server, $Port).Wait($TcpTimeout)) {
+			write-debug "banner probe timeout for Server: $Server and Port: $Port"
+			return $false
+		}
+		write-debug "banner probe connected for Server: $Server and Port: $Port"
+		$tcpStream = $tcpConnection.GetStream()
+		$reader = New-Object System.IO.StreamReader($tcpStream)
+		$tries = 0
+		$reader_temp = ""
+		while ($tcpConnection.Connected -and $tries -lt 6)
+		{
+			while ($tcpStream.DataAvailable)
+			{
+				$reader_temp += $reader.ReadLine()
+				if ($reader_temp -ilike "ssh*") {
+					$reader.Close()
+					$tcpConnection.Close()
+					return $reader_temp
+				}
+				Write-debug $reader_temp -foregroundcolor yellow
+			}
+		Start-Sleep -Milliseconds 200
+		$tries++
+		}
+	$reader.Close()
+	$tcpConnection.Close()
+	} Catch {
+		if ($tcpConnection) { $tcpConnection.Close() }
+		write-debug "banner catch exception for Server: $Server and Port: $Port"
+		return $false
+	}
+}
+
 function sendkey ($h, $k, $user, $port, $options, $verbose) {
+	$banner = getSSHbanner "$h" "$p"
+	write-debug "getSSHbanner return value: $banner"
+	# Conditionalize Windows powershell from Linux sh syntax.  All strings need to conform to what ssh allows for remote command.
+	if ($banner -ilike "*windows*" -and $banner) {
+		$here_string=@'
+\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -c \"$val = read-host ; echo $val >> ~\.ssh\authorized_keys ; write-host -nonewline 'Successfully added key for user'${env:USERNAME}'@'${env:COMPUTERNAME} \"
+'@
+	} else {
 	#Please use an editor that displays TAB,CR,LF as visible elements. Use only unix-style line endings (LF).
 	#Be very careful with LF vs CRLF, and quoting of strings for sh -c.  Use sh -cx to help debug.
 	#Use powershell here_string with single quote to not do variable replacement, and treat everything very literal.
@@ -105,7 +156,7 @@ if [ -x /sbin/restorecon ]; then \
 fi 	\
 '
 '@
-
+	}
 		# Use write-output to enable proper pipeline support
 		write-output "${k}" | ssh $port -S none $options $verbose "$user$h" $here_string
 }
